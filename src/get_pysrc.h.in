@@ -1,0 +1,35 @@
+#pragma once
+
+#ifndef __EMBED_PY_SRC
+
+#include <stdio.h>
+
+#include <format>
+#include <optional>
+#include <string>
+#include <string_view>
+
+static inline std::optional<std::string> get_py_src(
+	const std::string_view py_path) {
+	std::string py_code;
+
+	FILE *py_in = fopen(py_path.data(), "rb");
+	if (py_in == NULL) {
+		puts(std::format("Python Source not found: {}", py_path).c_str());
+		return {};
+	}
+
+	while (!feof(py_in)) {
+		char buffer[513] = {0};
+		fread(buffer, sizeof(char), 512, py_in);
+		py_code += buffer;
+	}
+
+	return py_code;
+}
+
+#else
+
+#define py_code R"(@__PY_SRC__@)"
+
+#endif
