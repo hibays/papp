@@ -18,7 +18,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ..)
 
 # set the project name
 project(PAPP
-	VERSION 0.8.2
+	VERSION 0.8.3
 	LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -59,6 +59,8 @@ if(CMAKE_BUILD_TYPE MATCHES "Deb")
 	set(EMBED_PY_SRC OFF)
 else()
 	target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
+	# strip release
+	target_link_libraries(${PROJECT_NAME} -s)
 endif()
 
 if(EMBED_PY_SRC)

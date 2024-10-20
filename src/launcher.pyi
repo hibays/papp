@@ -2,6 +2,12 @@ __exec_path__: str
 __launcher_dir__: str
 __runtime_dir__: str
 
+def create_directories(dir: str)-> bool :
+	...
+
+def create_directory_symlink(target: str, link: str)-> int :
+	...
+
 def setenv(name: str, value: str)-> int :
 	...
 

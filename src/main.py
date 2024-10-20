@@ -5,13 +5,6 @@ import json
 import launcher as lun # type: ignore
 from launcher import __launcher_dir__, __runtime_dir__ # type: ignore
 
-def makeDirAnyway(dir_path) :
-	if not os.path.isdir(dir_path) :
-		parent = os.path.dirname(dir_path)
-		if os.path.isdir(parent) :
-			os.mkdir(dir_path)
-		makeDirAnyway(parent)
-
 def getWinDrive(path) :
 	try :
 		return path.split(':')[0] + ':'
@@ -35,24 +28,21 @@ def tranEnv(path_str: str)-> str :
 	
 	return ns
 
-def exangeDir(src, tgr) : #TODO
-	if os.path.isdir(src) :
-		return
-	return
-
-class exangeDirMgr(object) :#TODO
+class exangeDirMgr(object) :#TODO: A way to map folders
 	def __init__(self) :
-		pass
+		...
+
+	def make_map(self, target, link) :
+		...
 
 	def __enter__(self):
-		print("执行了 __enter__方法")
+		self.mapPath = []
 		return self
 
 	def __exit__(self, type, value, trace):
-		print("执行了 __exit__方法")
-		print("type:", type)
-		print("value:", value)
-		print("trace:", trace)
+		while self.mapPath :
+			target, link = self.mapPath.pop()
+			os.remove(link)
 
 def load_config(jsonF) :
 	with open(jsonF) as f :
@@ -68,11 +58,13 @@ def main() :
 	cod = load_config(os.path.join(__runtime_dir__, 'papp_config.json'))
 
 	if cod['appReDataMode'] == 'env' :
-		makeDirAnyway(cod['poraDataDir'])
+		lun.create_directories(cod['poraDataDir'])
 		exangeUser(cod['poraDataDir'])
 
 	elif cod['appReDataMode'] == 'map' :
-		raise NotImplementedError #TODO
+		raise NotImplementedError('Not support `map` mode yet.') #TODO: `map` mode
+		for i in cod['mapPath'] :
+			target, link = i
 
 	else :
 		raise ValueError('Invaild config for appReDataMode, must be `env` or `map`.')
@@ -93,6 +85,7 @@ def main() :
 	print(endr)
 
 if __name__ == '__main__' :
+	print(sys.argv)
 	try :
 		main()
 
