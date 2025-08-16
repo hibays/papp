@@ -7,15 +7,16 @@ add_library(pkpy INTERFACE)
 target_include_directories(pkpy INTERFACE ${PKPY_ROOT}/include)
 target_link_libraries(pkpy INTERFACE pocketpy)
 
-add_library(pkpy::pkpy ALIAS pkpy)
+add_library(lib::pkpy ALIAS pkpy)
 
 ## 2. detours
 
-add_library(detours INTERFACE)
 set(DETOURS_ROOT Detours-4.0.1)
 set(DETOURS_SOURCE ${DETOURS_ROOT}/src)
 
+add_library(detours INTERFACE)
 target_sources(detours PRIVATE
+#	${DETOURS_SOURCE}/creatwth.cpp
 	${DETOURS_SOURCE}/detours.cpp
 	${DETOURS_SOURCE}/detours.h
 	${DETOURS_SOURCE}/detver.h
@@ -35,3 +36,5 @@ set_property(
 	APPEND PROPERTY HEADER_FILE_ONLY true)
 
 target_include_directories(detours INTERFACE ${DETOURS_SOURCE})
+
+add_library(lib::detours ALIAS detours)

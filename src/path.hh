@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <string>
 #include <format>
+#include <vector>
+
 
 namespace fs = std::filesystem;
 
@@ -40,6 +42,13 @@ class PathWrapper {
 
 	// 返回绝对路径（对应 path.absolute()）
 	std::string absolute() const { return fs::absolute(path_).string(); }
+
+	std::vector<std::string> parts() const {
+		std::vector<std::string> parts;
+		for (auto &p : path_)
+			parts.push_back(p.string());
+		return parts;
+	}
 
 	PathWrapper joinpath(const std::string &other) const { return PathWrapper(path_ / other); }
 

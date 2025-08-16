@@ -14,9 +14,9 @@ def getWinDrive(path) :
 	except : # noqa: E722
 		raise ValueError(f'Unresolvable drive path: {path}')
 
-def exangeUser(poraDataDir) : # Change env vars method
+def exangeUser(data_dir) : # Change env vars method
 	# Ref: https://www.coder.work/article/975869
-	absp = Path(poraDataDir).absolute().__str__()
+	absp = Path(data_dir).absolute().__str__()
 	lun.setenv('USERPROFILE', absp)
 	lun.setenv('HOMEDRIVE', getWinDrive(absp))
 	lun.setenv('HOMEPATH', absp.lstrip(getWinDrive(absp)))
@@ -29,7 +29,11 @@ def tranEnv(path_str: str)-> str :
 		).replace('{USERPROFILE}', str(os.getenv('USERPROFILE')),
 		).replace('{runtime}', __runtime_dir__)
 	
-	return ns
+	new_conc = Path(ns).parts
+	nc = Path(new_conc[0])
+	for p in new_conc[1:] :
+		nc /= p
+	return nc.__str__()
 
 class exangeDirMgr(object) :#TODO: A way to map folders
 	def __init__(self) :
@@ -47,10 +51,10 @@ class exangeDirMgr(object) :#TODO: A way to map folders
 			target, link = self.mapPath.pop()
 			os.remove(link)
 
-def load_config(json_path: Path) -> Dict[str, str]:
-	configd: Dict[str, str] = json.loads(json_path.read_text())
+def load_config(json_path: Path) -> Dict:
+	configd: Dict = json.loads(json_path.read_text())
 
-	configd['poraDataDir'] = Path(tranEnv(configd['poraDataDir'])).absolute().__str__()
+	configd['data_dir'] = Path(tranEnv(configd['data_dir'])).absolute().__str__()
 
 	configd['executable_path'] = tranEnv(configd['executable_path'])
 
@@ -58,10 +62,11 @@ def load_config(json_path: Path) -> Dict[str, str]:
 
 def main() :
 	cod = load_config(Path(__runtime_dir__) / 'pconf.json')
+	print(cod)
 
 	if cod['appReDataMode'] == 'env' :
-		lun.create_directories(cod['poraDataDir'])
-		exangeUser(cod['poraDataDir'])
+		lun.create_directories(cod['data_dir'])
+		exangeUser(cod['data_dir'])
 
 	elif cod['appReDataMode'] == 'map' :
 		raise NotImplementedError('Not support `map` mode yet.') #TODO: `map` mode
@@ -81,8 +86,12 @@ def main() :
 	runas: bool = cod['RunAsAdministrator'].lower() == 'yes'
 
 	exec_path = cod['executable_path']
+	exec0_args = ''
+	for i in sys.argv :
+		exec0_args += f' "{i}"'
 
-	if exec_path == lun.__exec_path__ :
+	if False :
+		print('runas', runas)
 		# If the app is launcher itself, use stimu_pipe_run
 		if runas :
 			raise ValueError('Cannot run launcher as administrator.')
@@ -90,10 +99,10 @@ def main() :
 			lun.msgbox('Warning', 'You are running the launcher itself, this may cause unexpected behavior.')
 
 	if runas :
-		endr = lun.shell_exec(' '.join((cod['executable_path'], *map('"{}"'.format, sys.argv))), runas)
+		endr = lun.shell_exec(' '.join((exec_path, exec0_args)), runas)
 	else :
-		endr = lun.stimu_pipe_run(exec_path, lun.__exec_path__)
-	print(endr)
+		endr = lun.stimu_pipe_run(exec_path, exec0_args)
+	print('endr', endr)
 
 if __name__ == '__main__' :
 	print(sys.argv)

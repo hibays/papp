@@ -22,5 +22,11 @@ PYBIND11_EMBEDDED_MODULE(pathlib, m) {
 		.def("joinpath", &PathWrapper::joinpath)			   // path.joinpath(other)
 		.def("read_text", &PathWrapper::read_text)			   // path.read_text()
 		.def("write_text", &PathWrapper::write_text)		   // path.write_text(content)
-		.def_static("cwd", &PathWrapper::cwd);				   // Path.cwd()
+		.def_static("cwd", &PathWrapper::cwd)				   // Path.cwd()
+		.def_property_readonly("parts", [](const PathWrapper &self) {
+			py::list parts;
+			for (auto &p : self.parts())
+				parts.append(py::str(p));
+			return parts;
+		});	// Path.parts()
 }

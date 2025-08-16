@@ -18,7 +18,7 @@ endif()
 
 # set the project name
 project(PAPP
-	VERSION 0.8.3
+	VERSION 0.8.5
 	LANGUAGES C CXX)
 
 set(CMAKE_C_STANDARD 11)
@@ -41,7 +41,7 @@ add_executable(${PROJECT_NAME}
 	src/lunmod.cc
 	src/path.cc)
 
-target_link_libraries(${PROJECT_NAME} pkpy::pkpy)
+target_link_libraries(${PROJECT_NAME} lib::pkpy)
 
 # linux cmake cant recognize .rc file
 target_sources(${PROJECT_NAME} PRIVATE src/main.rc)
