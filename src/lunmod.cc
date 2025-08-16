@@ -1,4 +1,4 @@
-#include "pybind11/pybind11.h"
+#include "pybind11/pybind11.h" // IWYU pragma: keep
 namespace py = pybind11;
 
 #include <windows.h>

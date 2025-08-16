@@ -13,10 +13,17 @@ def getWinDrive(path) :
 		return path.split(':')[0] + ':'
 	except : # noqa: E722
 		raise ValueError(f'Unresolvable drive path: {path}')
+	
+def stdlizePath(path: Path) :
+	ls_parts = path.parts
+	nc = Path(ls_parts[0])
+	for p in ls_parts[1:] :
+		nc /= p
+	return nc
 
 def exangeUser(data_dir) : # Change env vars method
 	# Ref: https://www.coder.work/article/975869
-	absp = Path(data_dir).absolute().__str__()
+	absp = stdlizePath(Path(data_dir)).absolute().__str__()
 	lun.setenv('USERPROFILE', absp)
 	lun.setenv('HOMEDRIVE', getWinDrive(absp))
 	lun.setenv('HOMEPATH', absp.lstrip(getWinDrive(absp)))
@@ -29,11 +36,7 @@ def tranEnv(path_str: str)-> str :
 		).replace('{USERPROFILE}', str(os.getenv('USERPROFILE')),
 		).replace('{runtime}', __runtime_dir__)
 	
-	new_conc = Path(ns).parts
-	nc = Path(new_conc[0])
-	for p in new_conc[1:] :
-		nc /= p
-	return nc.__str__()
+	return stdlizePath(Path(ns)).__str__()
 
 class exangeDirMgr(object) :#TODO: A way to map folders
 	def __init__(self) :
@@ -54,55 +57,57 @@ class exangeDirMgr(object) :#TODO: A way to map folders
 def load_config(json_path: Path) -> Dict:
 	configd: Dict = json.loads(json_path.read_text())
 
-	configd['data_dir'] = Path(tranEnv(configd['data_dir'])).absolute().__str__()
+	configd['data_dir'] = tranEnv(configd['data_dir'])
 
 	configd['executable_path'] = tranEnv(configd['executable_path'])
 
 	return configd
 
 def main() :
-	cod = load_config(Path(__runtime_dir__) / 'pconf.json')
-	print(cod)
+	conf = load_config(Path(__runtime_dir__) / 'pconf.json')
+	print(conf)
 
-	if cod['appReDataMode'] == 'env' :
-		lun.create_directories(cod['data_dir'])
-		exangeUser(cod['data_dir'])
+	if conf['portable_mode'] == 'env' :
+		lun.create_directories(conf['data_dir'])
+		exangeUser(conf['data_dir'])
 
-	elif cod['appReDataMode'] == 'map' :
+	elif conf['portable_mode'] == 'map' :
 		raise NotImplementedError('Not support `map` mode yet.') #TODO: `map` mode
-		for i in cod['mapPath'] :
+		for i in conf['mapPath'] :
 			target, link = i
 
 	else :
-		raise ValueError('Invaild config for appReDataMode, must be `env` or `map`.')
+		raise ValueError('Invaild config for portable_mode, must be `env` or `map`.')
 	
-	for i in cod['envVars'] :
-		lun.setenv(i[0], i[1])
+	for k,v in conf['ext_env'].items() :
+		lun.setenv(k, tranEnv(v))
 
 	# Enter RT env
-	if Path(os.curdir) == Path(__launcher_dir__) :
-		os.chdir(os.path.dirname(cod['executable_path']))
+	if os.curdir == __launcher_dir__ :
+		print('-- Changing working directory to target app dir:', os.path.dirname(conf['executable_path']))
+		os.chdir(os.path.dirname(conf['executable_path']))
 
-	runas: bool = cod['RunAsAdministrator'].lower() == 'yes'
+	runas: bool = conf['RunAsAdministrator'].lower() == 'yes'
 
-	exec_path = cod['executable_path']
-	exec0_args = ''
-	for i in sys.argv :
-		exec0_args += f' "{i}"'
+	exec_path: str = conf['executable_path']
+	exec1_args = ' '.join(sys.argv[1:])
+	exec0_args = sys.argv[0] + '{}'.format(' ' + exec1_args if exec1_args else '')
 
-	if False :
-		print('runas', runas)
-		# If the app is launcher itself, use stimu_pipe_run
+	print('-- Constructing command:', exec_path, f'(:{sys.argv[0]})')
+
+	if exec_path == lun.__exec_path__ :
+		# If the target app is launcher itself, use stimu_pipe_run
 		if runas :
 			raise ValueError('Cannot run launcher as administrator.')
 		else :
 			lun.msgbox('Warning', 'You are running the launcher itself, this may cause unexpected behavior.')
 
 	if runas :
-		endr = lun.shell_exec(' '.join((exec_path, exec0_args)), runas)
+		conclog = lun.shell_exec(exec_path + ' ' + exec1_args, runas)
 	else :
-		endr = lun.stimu_pipe_run(exec_path, exec0_args)
-	print('endr', endr)
+		conclog = lun.stimu_pipe_run(exec_path, exec0_args)
+	print('conclog:', conclog)
+
 
 if __name__ == '__main__' :
 	print(sys.argv)

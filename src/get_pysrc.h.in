@@ -7,14 +7,12 @@
 #include <format>
 #include <optional>
 #include <string>
-#include <string_view>
 
-static inline std::optional<std::string> get_py_src(
-	const std::string_view py_path) {
+static inline std::optional<std::string> get_py_src(const char *py_path) {
 	std::string py_code;
 
 	FILE *py_in = nullptr;
-	if (fopen_s(&py_in, py_path.data(), "rb") != 0) {
+	if (fopen_s(&py_in, py_path, "rb") != 0) {
 		puts(std::format("Python Source not found: {}", py_path).c_str());
 		return {};
 	}
@@ -25,6 +23,7 @@ static inline std::optional<std::string> get_py_src(
 		py_code += buffer;
 	}
 
+	fclose(py_in);
 	return py_code;
 }
 

@@ -35,7 +35,7 @@ endif()
 
 add_subdirectory(thirdlib)
 
-add_executable(${PROJECT_NAME} 
+add_executable(${PROJECT_NAME}
 	src/main.cc
 	src/utils.cc
 	src/lunmod.cc
@@ -43,21 +43,26 @@ add_executable(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} lib::pkpy)
 
-# linux cmake cant recognize .rc file
-target_sources(${PROJECT_NAME} PRIVATE src/main.rc)
+# This option is used to enable custom icon for the executable.
+# Set it to ON, and define __CUSTOM_ICON_PATH__ to cmake
+option(CUSTOM_ICON OFF)
 
 if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	add_compile_options(-Wno-calloc-transposed-args) # fix gcc-14 error for zip
 endif()
 
 # msys2 mingw32 link shared stdc++ lib
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	# add_link_options(-static-libgcc -static-libstdc++ -static)
 	target_link_libraries(${PROJECT_NAME} -static gcc stdc++ pthread -dynamic)
 
-elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 	target_link_libraries(${PROJECT_NAME} -Wl,-allow-multiple-definition) # for force fix allow Clang and GCC ABI error (duplicate section has different size). See https://doc.magnum.graphics/magnum/platforms-windows.html#platform-windows-troubleshooting-duplicate-section-has-different-size
 	target_link_libraries(${PROJECT_NAME} -static stdc++ pthread -dynamic)
+
+elseif(MSVC)
+	set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+	
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Deb")
@@ -66,7 +71,6 @@ if(CMAKE_BUILD_TYPE MATCHES "Deb")
 elseif(MSVC)
 	target_link_options(${PROJECT_NAME} PRIVATE /SUBSYSTEM:WINDOWS)
 	target_link_options(${PROJECT_NAME} PRIVATE /ENTRY:mainCRTStartup)
-	target_link_libraries(${PROJECT_NAME} /INCREMENTAL:NO) # disable incremental linking for release binary
 
 else()
 	target_link_options(${PROJECT_NAME} PRIVATE -mwindows)
@@ -84,7 +88,17 @@ endif()
 configure_file(
 	src/get_pysrc.h.in
 	${PROJECT_SOURCE_DIR}/src/get_pysrc.h
+	@ONLY
 )
+
+if(CUSTOM_ICON)
+	configure_file(
+		src/icon.rc.in
+		${PROJECT_SOURCE_DIR}/src/icon.rc
+		@ONLY
+	)
+	target_sources(${PROJECT_NAME} PRIVATE src/icon.rc)
+endif()
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 	COMMAND ${CMAKE_COMMAND} -E copy_if_different

@@ -1,4 +1,4 @@
-#include "pybind11/pybind11.h"
+#include "pybind11/pybind11.h" // IWYU pragma: keep
 namespace py = pybind11;
 
 #include "path.hh"
@@ -11,6 +11,8 @@ PYBIND11_EMBEDDED_MODULE(pathlib, m) {
 		.def("__str__", &PathWrapper::string)				   // str(path)
 		.def("__repr__", &PathWrapper::repr)				   // repr(path)
 		.def("__truediv__", &PathWrapper::operator/)		   // path / other
+		.def("__eq__", &PathWrapper::operator==)			   // path == other
+		.def("__ne__", &PathWrapper::operator!=)			   // path != other
 		.def_property_readonly("name", &PathWrapper::name)	   // path.name
 		.def_property_readonly("stem", &PathWrapper::stem)	   // path.stem
 		.def_property_readonly("suffix", &PathWrapper::suffix) // path.suffix
@@ -28,5 +30,5 @@ PYBIND11_EMBEDDED_MODULE(pathlib, m) {
 			for (auto &p : self.parts())
 				parts.append(py::str(p));
 			return parts;
-		});	// Path.parts()
+		}); // Path.parts()
 }

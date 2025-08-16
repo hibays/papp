@@ -76,6 +76,11 @@ class PathWrapper {
 	// 路径拼接（对应 path / other）
 	PathWrapper operator/(const std::string &other) const { return PathWrapper(path_ / other); }
 
+	// 相等判断（对应 path == other）
+	bool operator==(const PathWrapper &other) const { return path_ == other.path_; }
+	// 不相等判断（对应 path != other）
+	bool operator!=(const PathWrapper &other) const { return path_ != other.path_; }
+
 	// 静态方法：返回当前工作目录（对应 Path.cwd()）
 	static PathWrapper cwd() { return PathWrapper(fs::current_path()); }
 
