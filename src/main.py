@@ -52,7 +52,7 @@ def load_config(json_path: Path) -> Dict[str, str]:
 
 	configd['poraDataDir'] = Path(tranEnv(configd['poraDataDir'])).absolute().__str__()
 
-	configd['appExecAbs'] = tranEnv(configd['appExecAbs'])
+	configd['executable_path'] = tranEnv(configd['executable_path'])
 
 	return configd
 
@@ -76,11 +76,11 @@ def main() :
 
 	# Enter RT env
 	if Path(os.curdir) == Path(__launcher_dir__) :
-		os.chdir(os.path.dirname(cod['appExecAbs']))
+		os.chdir(os.path.dirname(cod['executable_path']))
 
 	runas: bool = cod['RunAsAdministrator'].lower() == 'yes'
 
-	exec_path = cod['appExecAbs']
+	exec_path = cod['executable_path']
 
 	if exec_path == lun.__exec_path__ :
 		# If the app is launcher itself, use stimu_pipe_run
@@ -90,7 +90,7 @@ def main() :
 			lun.msgbox('Warning', 'You are running the launcher itself, this may cause unexpected behavior.')
 
 	if runas :
-		endr = lun.shell_exec(' '.join((cod['appExecAbs'], *map('"{}"'.format, sys.argv))), runas)
+		endr = lun.shell_exec(' '.join((cod['executable_path'], *map('"{}"'.format, sys.argv))), runas)
 	else :
 		endr = lun.stimu_pipe_run(exec_path, lun.__exec_path__)
 	print(endr)

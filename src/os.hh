@@ -1,7 +1,10 @@
 #include "pybind11/pybind11.h"
 namespace py = pybind11;
 
-#include "utils.hh"
+#include <filesystem>
+#include <format>
+
+typedef std::filesystem::path Path;
 
 // Init os
 inline int init_os() {
@@ -10,12 +13,10 @@ inline int init_os() {
 		py::eval("raise ImportError('os module not found')");
 		return 1;
 	}
-	
+
 	m.attr("curdir") = py::str(std::filesystem::current_path().string());
 
-	m.def("getcwd", []() {
-		return py::str(std::filesystem::current_path().string());
-	});
+	m.def("getcwd", []() { return py::str(std::filesystem::current_path().string()); });
 
 	m.def("chdir", [](const std::string &path) {
 		std::error_code ec;
@@ -43,6 +44,7 @@ inline int init_os() {
 		auto parent = Path(path).parent_path().string();
 		return py::str(parent);
 	});
+
 	os_path.def("join", [](const char *path, py::args args) {
 		auto parent = Path(path);
 		for (auto &&arg : args) {

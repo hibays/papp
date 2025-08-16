@@ -33,17 +33,7 @@ if(MSVC)
 	add_compile_options(/utf-8 /experimental:c11atomics)
 endif()
 
-set(PKPY_ROOT thirdlib/pocketpy-2.0.8)
-add_subdirectory(
-	${PKPY_ROOT}
-	EXCLUDE_FROM_ALL)
-include_directories(${PKPY_ROOT}/include)
-
-add_library(detours INTERFACE)
-set(DETOURS_ROOT thirdlib/Detours-4.0.1)
-target_include_directories(detours INTERFACE ${DETOURS_ROOT}/src)
-file(GLOB DETOURS_SOURCES ${DETOURS_ROOT}/src/*.cpp)
-target_sources(detours INTERFACE ${DETOURS_SOURCES})
+add_subdirectory(thirdlib)
 
 add_executable(${PROJECT_NAME} 
 	src/main.cc
@@ -51,7 +41,7 @@ add_executable(${PROJECT_NAME}
 	src/lunmod.cc
 	src/path.cc)
 
-target_link_libraries(${PROJECT_NAME} pocketpy)
+target_link_libraries(${PROJECT_NAME} pkpy::pkpy)
 
 # linux cmake cant recognize .rc file
 target_sources(${PROJECT_NAME} PRIVATE src/main.rc)
