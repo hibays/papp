@@ -2,9 +2,9 @@
 
 #include "get_pysrc.h"
 
-#include "utils.hh"
+#include "utils.h"
 
-#include "os.hh"
+#include "os.h"
 
 int main(int argc, char *argv[]) {
 	pybind11::scoped_interpreter guard{};

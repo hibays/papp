@@ -7,7 +7,7 @@ namespace py = pybind11;
 #include <filesystem>
 #include <format>
 
-#include "utils.hh"
+#include "utils.h"
 
 // Init pocketpy runtime
 PYBIND11_EMBEDDED_MODULE(launcher, m) {

@@ -1,7 +1,7 @@
 #include <windows.h>
 #include <winnt.h>
 
-#include "utils.hh"
+#include "utils.h"
 
 Path program_location() {
 	char *path = nullptr;
