@@ -30,8 +30,10 @@ def load_config(json_path: Path) -> Dict:
 
 	# stdlize bool
 	for i in ['runas', 'work_dir_force_fallback'] :
+		if type(configd[i]) == bool :
+			continue
 		if configd[i] not in {'yes', 'no'} :
-			raise ValueError(f'Config item `{i}` must be `yes` or `no`.')
+			raise ValueError(f'Config item `{i}` must be bool or `yes` or `no`.')
 		configd[i] = configd[i].lower() == 'yes'
 	
 	# stdlize paths
@@ -69,21 +71,35 @@ def load_config(json_path: Path) -> Dict:
 	return configd
 
 
-class overrideEnvMgr(object) :
-	def __init__(self, data_dir: Path) :
+class EnvOwMgr(object) :
+	def __init__(self) :
+		self.env_buff = {}
+
+	def clear_env(self) :
+		self.env_buff.clear()
+
+	def update_env(self, env: Dict) :
+		self.env_buff.update(env)
+
+	def inherit_sys(self) :
+		'''Inherit current environment variables from system.'''
+		self.env_buff.update(os.environ.copy())
+
+	def make_override_env(self, data_dir: Path) :
+		# Ref: https://www.coder.work/article/975869
 		if type(data_dir) != Path :
 			raise ValueError('`data_dir` must be a `Path` object.')
-		self.data_dir = data_dir
+		absp = data_dir.absolute()
+		absps = absp.__str__()
+		self.env_buff['USERPROFILE'] = absps
+		self.env_buff['HOMEDRIVE'] = absp.drive
+		self.env_buff['HOMEPATH'] = absps.lstrip(absp.drive)
+		self.env_buff['APPDATA'] = (absp / 'AppData' / 'Roaming').__str__()
+		self.env_buff['LOCALAPPDATA'] = (absp / 'AppData' / 'Local').__str__()
 
 	def do_override(self) :
-		# Ref: https://www.coder.work/article/975869
-		absp = self.data_dir.absolute()
-		absps = absp.__str__()
-		lun.setenv('USERPROFILE', absps)
-		lun.setenv('HOMEDRIVE', absp.drive)
-		lun.setenv('HOMEPATH', absps.lstrip(absp.drive))
-		lun.setenv('APPDATA', (absp / 'AppData' / 'Roaming').__str__())
-		lun.setenv('LOCALAPPDATA', (absp / 'AppData' / 'Local').__str__())
+		for k,v in self.env_buff.items() :
+			lun.setenv(k, v)
 
 
 class exangeDirMgr(object) :#TODO: A way to map folders
@@ -104,8 +120,19 @@ class exangeDirMgr(object) :#TODO: A way to map folders
 
 
 class AppLauncher(object) :
+	MODE_ENV = 'env'
+	MODE_MAP = 'map'
+
 	def __init__(self, conf: Dict) :
-		self.conf = conf
+		self.parse_conf(conf)
+
+	def parse_conf(self, conf: dict) :
+		self.runas = conf['runas']
+		self.mode = conf['portable_mode']
+
+	def create_env(self) :
+		env_buff = {}
+		return env_buff
 
 	def launch(self) :
 		...
@@ -114,20 +141,20 @@ class AppLauncher(object) :
 def main() :
 	conf = load_config(Path(__runtime_dir__) / 'pconf.json')
 
-	if conf['portable_mode'] == 'env' :
-		lun.create_directories(conf['data_dir'])
-		overrideEnvMgr(Path(conf['data_dir'])).do_override()
+	launcher = AppLauncher(conf)
 
-	elif conf['portable_mode'] == 'map' :
+	env_mgr = EnvOwMgr()
+
+	if launcher.mode == AppLauncher.MODE_ENV :
+		lun.create_directories(conf['data_dir'])
+		env_mgr.make_override_env(Path(conf['data_dir']))
+
+	elif launcher.mode == AppLauncher.MODE_MAP :
 		raise NotImplementedError('Not support `map` mode yet.') #TODO: `map` mode
 		for i in conf['mapPath'] :
 			target, link = i
-
-	else :
-		raise ValueError('Invaild config for portable_mode, must be `env` or `map`.')
 	
-	for k,v in conf['ext_env'].items() :
-		lun.setenv(k, v)
+	env_mgr.update_env(conf['ext_env'])
 
 	# Enter RT env
 	if os.curdir == __launcher_dir__ :
@@ -147,8 +174,6 @@ def main() :
 
 	print('-- Resolved argv (include argv[0]):', sys.argv)
 
-	runas: bool = conf['runas']
-
 	exec_path: str = conf['executable_path']
 	exec1_args = ' '.join(sys.argv[1:])
 	execp_args = sys.argv[0] + '{}'.format(' ' + exec1_args if exec1_args else '')
@@ -158,13 +183,12 @@ def main() :
 
 	if exec_path == lun.__exec_path__ :
 		# If the target app is launcher itself, use stimu_pipe_run
-		if runas :
-			raise ValueError('Cannot run launcher as administrator.')
-		else :
-			lun.msgbox('Warning', 'You are running the launcher itself, this may cause unexpected behavior.')
+		lun.msgbox('Warning', 'You are running the launcher itself, this may cause unexpected behavior.')
 
-	if runas :
-		conclog = lun.shell_exec(exec_path + ' ' + exec1_args, runas)
+	env_mgr.do_override()
+
+	if launcher.runas :
+		conclog = lun.shell_exec(exec_path + ' ' + exec1_args, launcher.runas)
 	else :
 		conclog = lun.stimu_pipe_run(exec_path, execo_args)
 	print('conclog:', conclog)

@@ -29,12 +29,6 @@ class CmakeBuilder(object):
         chdir(self.src_dir)
 
 
-class IconMgr(object):
-
-    def __init__(self, icon_src: Path):
-        self.icon_src: Path = icon_src
-
-
 class ConfigMgr(object):
 
     def __init__(self):
@@ -61,14 +55,23 @@ class PappBuilder(object):
         self.build_dir.mkdir(exist_ok=True)
 
 
-import icoextract
+@click.command()
+@click.argument('target_exe', type=click.Path(exists=True))
+def main(target_exe,
+         *,
+         app_name: str = None,
+         icon: Path = None,
+         build_dir: Path = None,
+         data_dir: Path = None):
+    '''Create PortableApp
+
+	target_exe: Path
+	目标可执行文件
 
 
-def main(app_name=None, *, icon=None):
-    st.set_page_config(page_title='Create PortableApp', page_icon='icon.ico')
-    st.title('Create PortableApp')
+	'''
 
-    st.button('🚀 Create 🚀', width="stretch")
+    ...
 
 
 if __name__ == '__main__':

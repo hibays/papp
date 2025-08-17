@@ -64,3 +64,4 @@ Mkfile.old
 dkms.conf
 
 ERROR.txt
+tools/pconf.json

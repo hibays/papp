@@ -33,10 +33,6 @@ if(MSVC)
 	add_compile_options(/utf-8 /experimental:c11atomics)
 endif()
 
-if(WIN32)
-	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-endif()
-
 add_subdirectory(thirdlib)
 
 add_executable(${PROJECT_NAME}

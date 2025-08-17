@@ -27,7 +27,7 @@ PYBIND11_EMBEDDED_MODULE(launcher, m) {
 	});
 
 	m.def("setenv", [](const char *name, const char *value) {
-		auto code = _putenv(std::format("{}={}", name, value).c_str());
+		auto code = SetEnvironmentVariable(name, value);
 		return code;
 	});
 

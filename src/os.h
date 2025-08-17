@@ -4,6 +4,8 @@ namespace py = pybind11;
 #include <filesystem>
 #include <format>
 
+#include <windows.h>
+
 typedef std::filesystem::path Path;
 
 // Init os
@@ -32,11 +34,42 @@ inline int init_os() {
 	});
 
 	m.def("getenv", [](const char *name) {
-		auto res = getenv(name);
-		if (res == NULL)
+		auto size = GetEnvironmentVariable(name, NULL, 0);
+		if (size == 0)
 			py::eval("raise KeyError('Given name not found.')");
-		return py::str(res);
+
+		std::vector<char> buffer(size);
+		GetEnvironmentVariable(name, buffer.data(), size);
+
+		return py::str(buffer.data(), size - 1);
 	});
+
+	// Warn: 这里的 environ 行为与 CPython 不同，CPython 修改后会作用到当前进程，但是此实现不会有影响
+	m.attr("environ") = []() {
+		auto raw = GetEnvironmentStrings();
+		if (!raw) {
+			py::eval("raise OSError('GetEnvironmentStrings failed')");
+		}
+
+		py::dict env;
+
+		for (const char *p = raw; *p; ++p) {
+			const char *eq = p;
+			while (*eq && *eq != '=')
+				++eq;					 // 找到 '=' 或结尾
+			if (*eq == '=' && eq != p) { // 有正常 key
+				auto key = py::str(p, eq - p);
+				auto val = py::str(eq + 1);
+				env[key] = val;
+			}
+			// 跳到下一字符串
+			while (*p)
+				++p;
+		}
+
+		FreeEnvironmentStrings(raw);
+		return env;
+	}();
 
 	auto os_path = m.def_submodule("path");
 
