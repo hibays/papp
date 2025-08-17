@@ -33,6 +33,10 @@ if(MSVC)
 	add_compile_options(/utf-8 /experimental:c11atomics)
 endif()
 
+if(WIN32)
+	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+endif()
+
 add_subdirectory(thirdlib)
 
 add_executable(${PROJECT_NAME}
@@ -62,7 +66,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 
 elseif(MSVC)
 	set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-	
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES "Deb")

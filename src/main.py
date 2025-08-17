@@ -8,35 +8,69 @@ from launcher import __launcher_dir__, __runtime_dir__ # type: ignore
 
 from pathlib import Path
 
-def getWinDrive(path) :
-	try :
-		return path.split(':')[0] + ':'
-	except : # noqa: E722
-		raise ValueError(f'Unresolvable drive path: {path}')
-	
 def stdlizePath(path: Path) :
+	# format path to native status
 	ls_parts = path.parts
 	nc = Path(ls_parts[0])
 	for p in ls_parts[1:] :
+		if p == '/' :
+			p = '\\'
 		nc /= p
 	return nc
 
-def exangeUser(data_dir) : # Change env vars method
-	# Ref: https://www.coder.work/article/975869
-	absp = stdlizePath(Path(data_dir)).absolute().__str__()
-	lun.setenv('USERPROFILE', absp)
-	lun.setenv('HOMEDRIVE', getWinDrive(absp))
-	lun.setenv('HOMEPATH', absp.lstrip(getWinDrive(absp)))
-	lun.setenv('APPDATA', Path(absp).joinpath('AppData').joinpath('Roaming').__str__())
-	lun.setenv('LOCALAPPDATA', Path(absp).joinpath('AppData').joinpath('Local').__str__())
+def conf_embed(path_str: str)-> str :
+	return (path_str
+		).replace('#p{Path}', str(os.getenv('Path'))
+		).replace('#p{AppData}', str(os.getenv('APPDATA'))
+		).replace('#p{USERPROFILE}', str(os.getenv('USERPROFILE')),
+		).replace('#p{runtime}', __runtime_dir__)
 
-def tranEnv(path_str: str)-> str :
-	ns = path_str.replace('{Path}', str(os.getenv('Path'))
-		).replace('{AppData}', str(os.getenv('APPDATA'))
-		).replace('{USERPROFILE}', str(os.getenv('USERPROFILE')),
-		).replace('{runtime}', __runtime_dir__)
-	
-	return stdlizePath(Path(ns)).__str__()
+def load_config(json_path: Path) -> Dict:
+	configd: Dict = json.loads(json_path.read_text())
+
+	for i in ['data_dir', 'executable_path', 'work_dir_fallback'] :
+		if i not in configd :
+			raise KeyError(f'Missing key `{i}` in config file.')
+		configd[i] = stdlizePath(Path(conf_embed(configd[i]))).__str__()
+
+	configd['entry_args'] = list(map(conf_embed, configd['entry_args']))
+
+	for k,v in configd['ext_env'].items() :
+		configd['ext_env'][k] = conf_embed(v)
+
+	if configd['portable_mode'] == 'map' :
+		if 'mapPath' not in configd :
+			raise KeyError('Missing key `mapPath` in config file.')
+		if type(configd['mapPath']) != list :
+			raise ValueError('`mapPath` must be a list.')
+		for idx, i in enumerate(configd['mapPath']) :
+			if type(i) != list or len(i) != 2 :
+				raise ValueError(f'`mapPath` item at index {idx} must be a list with 2 elements.')
+			target, link = i
+			configd['mapPath'][idx] = [
+				stdlizePath(Path(conf_embed(target))).__str__(),
+				stdlizePath(Path(conf_embed(link))).__str__()
+			]
+
+	return configd
+
+
+class overrideEnvMgr(object) :
+	def __init__(self, data_dir: Path) :
+		if type(data_dir) != Path :
+			raise ValueError('`data_dir` must be a `Path` object.')
+		self.data_dir = data_dir
+
+	def do_override(self) :
+		# Ref: https://www.coder.work/article/975869
+		absp = self.data_dir.absolute()
+		absps = absp.__str__()
+		lun.setenv('USERPROFILE', absps)
+		lun.setenv('HOMEDRIVE', absp.drive)
+		lun.setenv('HOMEPATH', absps.lstrip(absp.drive))
+		lun.setenv('APPDATA', (absp / 'AppData' / 'Roaming').__str__())
+		lun.setenv('LOCALAPPDATA', (absp / 'AppData' / 'Local').__str__())
+
 
 class exangeDirMgr(object) :#TODO: A way to map folders
 	def __init__(self) :
@@ -54,14 +88,14 @@ class exangeDirMgr(object) :#TODO: A way to map folders
 			target, link = self.mapPath.pop()
 			os.remove(link)
 
-def load_config(json_path: Path) -> Dict:
-	configd: Dict = json.loads(json_path.read_text())
 
-	configd['data_dir'] = tranEnv(configd['data_dir'])
+class AppLauncher(object) :
+	def __init__(self, conf: Dict) :
+		self.conf = conf
 
-	configd['executable_path'] = tranEnv(configd['executable_path'])
+	def launch(self) :
+		...
 
-	return configd
 
 def main() :
 	conf = load_config(Path(__runtime_dir__) / 'pconf.json')
@@ -69,7 +103,7 @@ def main() :
 
 	if conf['portable_mode'] == 'env' :
 		lun.create_directories(conf['data_dir'])
-		exangeUser(conf['data_dir'])
+		overrideEnvMgr(Path(conf['data_dir'])).do_override()
 
 	elif conf['portable_mode'] == 'map' :
 		raise NotImplementedError('Not support `map` mode yet.') #TODO: `map` mode
@@ -80,18 +114,33 @@ def main() :
 		raise ValueError('Invaild config for portable_mode, must be `env` or `map`.')
 	
 	for k,v in conf['ext_env'].items() :
-		lun.setenv(k, tranEnv(v))
+		lun.setenv(k, v)
 
 	# Enter RT env
 	if os.curdir == __launcher_dir__ :
-		print('-- Changing working directory to target app dir:', os.path.dirname(conf['executable_path']))
-		os.chdir(os.path.dirname(conf['executable_path']))
+		cwd = Path('c:/app/java').parent
+		cwdstr = repr(cwd)
+		print('-- Current working directory:', cwdstr)
+		cwd = os.path.dirname(conf['executable_path'])
+		cwdstr = repr(cwd)
+		print('-- Current working directory:', cwdstr)
+		cwd = Path(conf['work_dir_fallback'])
+		cwdstr = cwd.__str__()
+		print('-- Changing working directory to target app dir:', cwdstr)
+		os.chdir(cwdstr)
 
-	runas: bool = conf['RunAsAdministrator'].lower() == 'yes'
+	# Insert entry args
+	for arg in conf['entry_args'][::-1] :
+		sys.argv.insert(1, arg)
+
+	print('-- Final argv:', sys.argv)
+
+	runas: bool = conf['runas'].lower() == 'yes'
 
 	exec_path: str = conf['executable_path']
 	exec1_args = ' '.join(sys.argv[1:])
 	exec0_args = sys.argv[0] + '{}'.format(' ' + exec1_args if exec1_args else '')
+	execo_args = exec_path + '{}'.format(' ' + exec1_args if exec1_args else '')
 
 	print('-- Constructing command:', exec_path, f'(:{sys.argv[0]})')
 
@@ -110,10 +159,9 @@ def main() :
 
 
 if __name__ == '__main__' :
-	print(sys.argv)
 	try :
 		main()
 
 	except Exception as e:
-		lun.msgbox(type(e).__name__, e.__str__())
+		lun.msgbox('Papp: ' + type(e).__name__, e.__str__())
 		raise e

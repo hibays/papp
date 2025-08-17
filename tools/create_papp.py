@@ -73,12 +73,7 @@ class ConfigMgr(object) :
 		self.configs: dict = configs
 
 	def init_default(self) :
-		self.configs.setdefault('portable_mode', 'env')
-		self.configs.setdefault('data_dir', '{runtime}/pdata')
-		self.configs.setdefault('mapPath', [])
-		self.configs.setdefault('ext_env', {})
-		self.configs.setdefault('executable_path', '{runtime}/Mindustry/Mindustry.exe')
-		self.configs.setdefault('RunAsAdministrator', 'no')
+		...
 
 
 class PappBuilder(object) :

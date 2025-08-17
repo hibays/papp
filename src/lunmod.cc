@@ -71,17 +71,16 @@ PYBIND11_EMBEDDED_MODULE(launcher, m) {
 			py::eval(std::format("raise RuntimeError('Executing command failed: {} {}')", app_abs_path, app_args));
 		}
 
-		CloseHandle(hWrite);
-
 		for (DWORD dwBytesRead = 0;;) {
 			char tmp[257] = {0}; // 用于存储命令行输出
-			if (!ReadFile(hRead, tmp, 256, &dwBytesRead, NULL) || !dwBytesRead)
+			if (!ReadFile(hRead, tmp, 256, &dwBytesRead, NULL) || !dwBytesRead) {
+				CloseHandle(hWrite);
+				CloseHandle(hRead);
 				break;
+			}
 			result += tmp;
 		}
-
-		CloseHandle(hRead);
-
+		
 		// 终止子进程
 		CloseHandle(pi.hThread);
 		TerminateProcess(pi.hProcess, 0);
