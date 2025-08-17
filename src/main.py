@@ -28,16 +28,30 @@ def conf_embed(path_str: str)-> str :
 def load_config(json_path: Path) -> Dict:
 	configd: Dict = json.loads(json_path.read_text())
 
+	# stdlize bool
+	for i in ['runas', 'work_dir_force_fallback'] :
+		if configd[i] not in {'yes', 'no'} :
+			raise ValueError(f'Config item `{i}` must be `yes` or `no`.')
+		configd[i] = configd[i].lower() == 'yes'
+	
+	# stdlize paths
 	for i in ['data_dir', 'executable_path', 'work_dir_fallback'] :
 		if i not in configd :
 			raise KeyError(f'Missing key `{i}` in config file.')
 		configd[i] = stdlizePath(Path(conf_embed(configd[i]))).__str__()
 
+	# stdlize entry args
 	configd['entry_args'] = list(map(conf_embed, configd['entry_args']))
 
+	# stdlize ext env
 	for k,v in configd['ext_env'].items() :
 		configd['ext_env'][k] = conf_embed(v)
 
+	# stdlize portable mode
+	if configd['portable_mode'] not in {'map', 'env'} :
+		raise ValueError('`portable_mode` must be `map` or `env`.')
+	
+	# stdlize map mode path
 	if configd['portable_mode'] == 'map' :
 		if 'mapPath' not in configd :
 			raise KeyError('Missing key `mapPath` in config file.')
@@ -99,7 +113,6 @@ class AppLauncher(object) :
 
 def main() :
 	conf = load_config(Path(__runtime_dir__) / 'pconf.json')
-	print(conf)
 
 	if conf['portable_mode'] == 'env' :
 		lun.create_directories(conf['data_dir'])
@@ -118,28 +131,27 @@ def main() :
 
 	# Enter RT env
 	if os.curdir == __launcher_dir__ :
-		cwd = Path('c:/app/java').parent
-		cwdstr = repr(cwd)
-		print('-- Current working directory:', cwdstr)
-		cwd = os.path.dirname(conf['executable_path'])
-		cwdstr = repr(cwd)
-		print('-- Current working directory:', cwdstr)
-		cwd = Path(conf['work_dir_fallback'])
-		cwdstr = cwd.__str__()
-		print('-- Changing working directory to target app dir:', cwdstr)
-		os.chdir(cwdstr)
+		newcwd: str = os.path.dirname(conf['executable_path'])
+		if conf['work_dir_force_fallback'] :
+			newcwd: str = conf['work_dir_fallback']
+			print('-- Warning: Work dir force fallback enabled, using fallback dir:', conf['work_dir_fallback'])
+		elif not Path(newcwd).is_dir() :
+			print('-- Warning: Target app dir not found, using fallback dir:', conf['work_dir_fallback'])
+			newcwd: str = conf['work_dir_fallback']
+		print('-- Changing working directory to target app dir:', newcwd)
+		os.chdir(newcwd)
 
 	# Insert entry args
 	for arg in conf['entry_args'][::-1] :
 		sys.argv.insert(1, arg)
 
-	print('-- Final argv:', sys.argv)
+	print('-- Resolved argv (include argv[0]):', sys.argv)
 
-	runas: bool = conf['runas'].lower() == 'yes'
+	runas: bool = conf['runas']
 
 	exec_path: str = conf['executable_path']
 	exec1_args = ' '.join(sys.argv[1:])
-	exec0_args = sys.argv[0] + '{}'.format(' ' + exec1_args if exec1_args else '')
+	execp_args = sys.argv[0] + '{}'.format(' ' + exec1_args if exec1_args else '')
 	execo_args = exec_path + '{}'.format(' ' + exec1_args if exec1_args else '')
 
 	print('-- Constructing command:', exec_path, f'(:{sys.argv[0]})')
@@ -154,7 +166,7 @@ def main() :
 	if runas :
 		conclog = lun.shell_exec(exec_path + ' ' + exec1_args, runas)
 	else :
-		conclog = lun.stimu_pipe_run(exec_path, exec0_args)
+		conclog = lun.stimu_pipe_run(exec_path, execo_args)
 	print('conclog:', conclog)
 
 
